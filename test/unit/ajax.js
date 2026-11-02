@@ -60,6 +60,97 @@ module( "ajax", {
 		}
 	});
 
+	ajaxTest( "jQuery.ajax() - do not execute js (crossOrigin)", 2, {
+		create: function( options ) {
+			options.crossDomain = true;
+			return jQuery.ajax( url("data/script.php?header=ecma"), options );
+		},
+		success: function() {
+			ok( true, "success" );
+		},
+		complete: function() {
+			ok( true, "complete" );
+		}
+	});
+
+	ajaxTest( "jQuery.ajax() - execute js for crossOrigin when dataType option is provided", 3, {
+		create: function( options ) {
+			options.crossDomain = true;
+			options.dataType = "script";
+			return jQuery.ajax( url("data/script.php?header=ecma"), options );
+		},
+		success: function() {
+			ok( true, "success" );
+		},
+		complete: function() {
+			ok( true, "complete" );
+		}
+	});
+
+	ajaxTest( "jQuery.ajax() - do not execute js (crossOrigin)", 2, {
+		create: function( options ) {
+			options.crossDomain = true;
+			return jQuery.ajax( url("data/script.php"), options );
+		},
+		success: function() {
+			ok( true, "success" );
+		},
+		complete: function() {
+			ok( true, "complete" );
+		}
+	});
+
+	ajaxTest( "jQuery.ajax() - do not execute text/javascript js (crossOrigin)", 3, {
+		create: function( options ) {
+			options.crossDomain = true;
+			return jQuery.ajax( url("data/script.php?header=script"), options );
+		},
+		success: function( data ) {
+			ok( true, "success" );
+			ok( /Script executed correctly/.test( data ), "script returned as text" );
+		},
+		complete: function() {
+			ok( true, "complete" );
+		}
+	});
+
+	ajaxTest( "jQuery.ajax() - no script content-type sniffing for detected crossOrigin", 3, function() {
+		function request( url, title, sniffed ) {
+			return {
+				url: url,
+				beforeSend: function( _, s ) {
+					if ( sniffed ) {
+						ok( s.contents.script && s.contents.script.test( "text/javascript" ), title );
+					} else {
+						strictEqual( s.contents.script, false, title );
+					}
+					return false;
+				},
+				error: true
+			};
+		}
+
+		var loc = document.location;
+
+		return [
+			request(
+				loc.protocol + "//example.invalid:" + ( loc.port || 80 ) + "/script.php",
+				"Script sniffing is disabled for a cross-domain URL without crossDomain option",
+				false
+			),
+			request(
+				"about:blank",
+				"Script sniffing is disabled for about:blank",
+				false
+			),
+			request(
+				url("data/script.php"),
+				"Script sniffing is kept for same-domain requests (global settings untouched)",
+				true
+			)
+		];
+	});
+
 	ajaxTest( "jQuery.ajax() - success callbacks (late binding)", 8, {
 		setup: addGlobalEvents("ajaxStart ajaxStop ajaxSend ajaxComplete ajaxSuccess"),
 		url: url("data/name.html"),
