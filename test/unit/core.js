@@ -1341,6 +1341,47 @@ test("jQuery.parseHTML", function() {
 	equal( jQuery.parseHTML("<td><td>")[ 1 ].parentNode.nodeType, 11, "parentNode should be documentFragment" );
 });
 
+test("jQuery.parseHTML(<a href>) - gh-2965", function() {
+	expect( 1 );
+
+	var html = "<a href='test.html'></a>",
+		href = jQuery.parseHTML( html )[ 0 ].href;
+
+	ok( /\/test\.html$/.test( href ), "href is not lost after parsing anchor" );
+});
+
+if ( jQuery.support.createHTMLDocument ) {
+	asyncTest("jQuery.parseHTML", function() {
+		expect ( 1 );
+
+		Globals.register("parseHTMLError");
+
+		jQuery.globalEval("parseHTMLError = false;");
+		jQuery.parseHTML( "<img src=x onerror='parseHTMLError = true'>" );
+
+		window.setTimeout(function() {
+			start();
+			equal( window.parseHTMLError, false, "onerror eventhandler has not been called." );
+		}, 2000);
+	});
+
+	asyncTest("jQuery.parseHTML - inline event handlers are not executed (keepScripts, nested)", function() {
+		expect( 1 );
+
+		Globals.register("parseHTMLHandlers");
+
+		jQuery.globalEval("parseHTMLHandlers = [];");
+		jQuery.parseHTML( "<img src=x onerror='parseHTMLHandlers.push(\"keepScripts\")'>", true );
+		jQuery.parseHTML( "<img src=x onerror='parseHTMLHandlers.push(\"noContext\")'>", null, false );
+		jQuery.parseHTML( "<div><p><img src=x onerror='parseHTMLHandlers.push(\"nested\")'></p></div>" );
+
+		window.setTimeout(function() {
+			start();
+			deepEqual( window.parseHTMLHandlers, [], "No onerror eventhandler has been called." );
+		}, 2000);
+	});
+}
+
 test("jQuery.parseJSON", function() {
 	expect( 20 );
 
