@@ -1103,6 +1103,21 @@ test("jQuery.extend(Object, Object)", function() {
 	deepEqual( options2, options2Copy, "Check if not modified: options2 must not be modified" );
 });
 
+test("jQuery.extend( true, ... ) Object.prototype pollution", function() {
+	expect( 2 );
+
+	jQuery.extend( true, {}, JSON.parse( "{\"__proto__\": {\"devMode\": true}}" ) );
+	ok( !( "devMode" in {} ), "Object.prototype not polluted" );
+
+	// Undo any pollution so it can neither mask the nested case nor leak into other tests
+	delete Object.prototype.devMode;
+
+	jQuery.extend( true, {}, JSON.parse( "{\"nested\": {\"__proto__\": {\"devModeNested\": true}}}" ) );
+	ok( !( "devModeNested" in {} ), "Object.prototype not polluted via a nested __proto__ key" );
+
+	delete Object.prototype.devModeNested;
+});
+
 test("jQuery.each(Object,Function)", function() {
 	expect( 23 );
 
