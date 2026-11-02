@@ -2479,7 +2479,11 @@ asyncTest( "Sanitized HTML doesn't get unsanitized (gh-4642)", function() {
 			"<foo\" alt=\"\" title=\"/><img src=url404 onerror=xss(8)>\">",
 			"<img alt=\"<x\" title=\"\" src=\"/><img src=url404 onerror=xss(9)>\">",
 			"<noscript/><img src=url404 onerror=xss(10)>",
-			"<noembed><noembed/><img src=url404 onerror=xss(11)>"
+			"<noembed><noembed/><img src=url404 onerror=xss(11)>",
+
+			// gh-4647: <option>/<optgroup> must not be re-parsed inside a <select> wrapper
+			"<option><style></option></select><img src=url404 onerror=xss(12)></style>",
+			"<optgroup><style></optgroup></select><img src=url404 onerror=xss(13)></style>"
 		];
 
 	expect( htmlStrings.length * 2 );
@@ -2521,7 +2525,11 @@ asyncTest( "Sanitized HTML doesn't get unsanitized by buildFragment-based method
 			"<noembed><noembed/><img src=url404 onerror=xss(#)>",
 			"<noframes><noframes/><img src=url404 onerror=xss(#)>",
 			"<noscript><noscript/><img src=url404 onerror=xss(#)>",
-			"<noscript/><img src=url404 onerror=xss(#)>"
+			"<noscript/><img src=url404 onerror=xss(#)>",
+
+			// gh-4647: <option>/<optgroup> must not be re-parsed inside a <select> wrapper
+			"<option><style></option></select><img src=url404 onerror=xss(#)></style>",
+			"<optgroup><style></optgroup></select><img src=url404 onerror=xss(#)></style>"
 		],
 		methods = [
 			[ "append", function( html ) {
@@ -2581,4 +2589,53 @@ asyncTest( "Sanitized HTML doesn't get unsanitized by buildFragment-based method
 		}
 		start();
 	}, 1000 );
+});
+
+test( "<option> and <optgroup> are not parsed inside an added <select> wrapper (gh-4647)", function() {
+
+	var i, j, label, result,
+		probe = document.createElement("div"),
+		nodeName = function( node ) {
+			return node.nodeName.toLowerCase();
+		},
+		htmlStrings = [
+			[ "<option>a</option></select><b>x</b>", "option,b" ],
+			[ "<optgroup label='a'></optgroup></select><b>x</b>", "optgroup,b" ]
+		],
+		methods = [
+			[ "html", function( html ) {
+				return jQuery("<div></div>").html( html ).contents();
+			} ],
+			[ "append", function( html ) {
+				return jQuery("<div></div>").append( html ).contents();
+			} ],
+			[ "jQuery", function( html ) {
+				return jQuery( html );
+			} ],
+			[ "jQuery.parseHTML", function( html ) {
+				return jQuery( jQuery.parseHTML( html ) );
+			} ]
+		];
+
+	// Support: IE<=9
+	// IE <=9 drops <option> tags inserted outside of a select element,
+	// so the <select> wrapper is still required there.
+	probe.innerHTML = "<option></option>";
+	if ( !probe.lastChild ) {
+		expect( 1 );
+		ok( true, "<option> needs a <select> wrapper in this browser" );
+		return;
+	}
+
+	expect( htmlStrings.length * methods.length );
+
+	// A "</select>" in the input can only end a <select> wrapper jQuery added itself;
+	// without a wrapper the markup must be parsed exactly as the browser would parse it.
+	for ( i = 0; i < htmlStrings.length; i++ ) {
+		for ( j = 0; j < methods.length; j++ ) {
+			label = methods[ j ][ 0 ] + "( " + htmlStrings[ i ][ 0 ] + " )";
+			result = jQuery.map( methods[ j ][ 1 ]( htmlStrings[ i ][ 0 ] ), nodeName ).join(",");
+			equal( result, htmlStrings[ i ][ 1 ], "No <select> wrapper applied: " + label );
+		}
+	}
 });
